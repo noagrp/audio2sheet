@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio2Sheet</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .waveform-bar {
+            transition: height 0.05s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+
+    <!-- Header Section -->
+    <header class="border-b border-slate-800 bg-slate-950/50 backdrop-blur px-6 py-4">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                    Audio Transcriber
+                </h1>
+                <p class="text-xs text-slate-400 mt-0.5">Translate your singing or whistling into notes and beats</p>
+            </div>
+            
+            <!-- Controls App Configurations -->
+            <div class="flex items-center gap-6 bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                <div class="flex flex-col">
+                    <label for="bpmInput" class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Target BPM</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="bpmInput" value="120" min="60" max="200" class="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-sm font-mono focus:outline-none focus:border-emerald-500 text-center">
+                        <span class="text-xs text-slate-500">♩</span>
+                    </div>
+                </div>
+                
+                <div class="w-px h-8 bg-slate-800"></div>
+
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Notation Style</span>
+                    <div class="flex bg-slate-800 p-0.5 rounded border border-slate-700">
+                        <button id="notationSolfege" class="px-2 py-0.5 text-xs rounded font-medium bg-emerald-500 text-slate-950 transition">Do-Re-Mi</button>
+                        <button id="notationLetters" class="px-2 py-0.5 text-xs rounded font-medium text-slate-400 hover:text-slate-200 transition">C-D-E</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 flex flex-col gap-8">
+        
+        <!-- Recording Hub Panel -->
+        <section class="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col items-center justify-center text-center backdrop-blur-sm relative overflow-hidden">
+            <div class="relative z-10 flex flex-col items-center max-w-md w-full">
+                <!-- Status & Visuals -->
+                <div id="recordingStatus" class="text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-slate-600 animate-pulse"></span> Ready to capture
+                </div>
+                <div id="liveNoteDisplay" class="text-5xl font-black tracking-tight text-slate-600 h-16 flex items-center justify-center transition-all">
+                    --
+                </div>
+
+                <!-- Live Visualizer Bars -->
+                <div id="visualizer" class="flex items-end justify-center gap-1 w-full h-12 my-4 opacity-40 transition-opacity">
+                    <div class="w-1.5 h-2 bg-gradient-to-t from-emerald-500 to-cyan-400 rounded-full waveform-bar"></div>
+                    <div class="w-1.5 h-4 bg-gradient-to-t from-emerald-500 to-cyan-400 rounded-full waveform-bar"></div>
+                    <div class="w-1.5 h-1 bg-gradient-to-t from-emerald-500 to-cyan-400 rounded-full waveform-bar"></div>
+                    <div class="w-1.5 h-6 bg-gradient-to-t from-emerald-500 to-cyan-400 rounded-full waveform-bar"></div>
+                    <div class="w-1.5 h-3 bg-gradient-to-t from-emerald-500 to-cyan-400 rounded-full waveform-bar"></div>
+                </div>
+
+                <!-- Primary Interactive Trigger Buttons -->
+                <div class="flex items-center gap-4 mt-2">
+                    <button id="recordBtn" class="px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-400/20 active:scale-[0.98] transition cursor-pointer flex items-center gap-2">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+                        Start Recording
+                    </button>
+                    <button id="demoBtn" class="px-4 py-3 rounded-xl font-medium text-xs text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition cursor-pointer">
+                        Simulate Demo Data
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sheets Outputs Displays Grid -->
+        <section class="grid md:grid-cols-2 gap-6">
+            <!-- 1. The Note Sheet Box -->
+            <div class="bg-slate-950/20 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[280px]">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold tracking-wide text-slate-300 uppercase flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 1. Note Sheet
+                        </h2>
+                        <span class="text-[10px] px-2 py-0.5 bg-slate-800 border border-slate-700/60 rounded text-slate-400 uppercase font-mono tracking-tight" id="badgeNotation">Solfège</span>
+                    </div>
+                    <div id="noteSheetBox" class="bg-slate-950/60 border border-slate-850 p-4 rounded-lg font-mono text-sm leading-relaxed text-slate-300 break-words h-40 overflow-y-auto selection:bg-emerald-500/20 select-all empty:before:content-['Empty._Sing/whistle_or_click_Demo...'] empty:before:text-slate-600 empty:before:italic"></div>
+                </div>
+                <button id="downloadNotes" disabled class="mt-4 w-full py-2.5 rounded-lg border border-slate-800 font-medium text-sm text-slate-500 cursor-not-allowed transition flex items-center justify-center gap-2">
+                    Download Notes (.txt)
+                </button>
+            </div>
+
+            <!-- 2. The Beat Sheet Box -->
+            <div class="bg-slate-950/20 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[280px]">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold tracking-wide text-slate-300 uppercase flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span> 2. Beat Sheet
+                        </h2>
+                        <span class="text-[10px] px-2 py-0.5 bg-slate-800 border border-slate-700/60 rounded text-slate-400 uppercase font-mono tracking-tight">Durations</span>
+                    </div>
+                    <div id="beatSheetBox" class="bg-slate-950/60 border border-slate-850 p-4 rounded-lg font-mono text-sm leading-relaxed text-slate-300 break-words h-40 overflow-y-auto selection:bg-cyan-500/20 select-all empty:before:content-['Empty._Sing/whistle_or_click_Demo...'] empty:before:text-slate-600 empty:before:italic"></div>
+                </div>
+                <button id="downloadBeats" disabled class="mt-4 w-full py-2.5 rounded-lg border border-slate-800 font-medium text-sm text-slate-500 cursor-not-allowed transition flex items-center justify-center gap-2">
+                    Download Beats (.txt)
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer Summary Info -->
+    <footer class="border-t border-slate-800/60 bg-slate-950/20 py-4 px-6 text-center text-xs text-slate-500">
+        Tip: For clean transcription, try to whistle steady notes cleanly without massive background hum.
+    </footer>
+
+    <!-- Audio Analysis & Interface Logic JavaScript Engine -->
+    <script>
+        // --- Musical Definitions Mapping Matrices ---
+        const noteStringsLetters = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const noteStringsSolfege = ["do", "do#", "re", "re#", "mi", "fa", "fa#", "sol", "sol#", "la", "la#", "si"];
+
+        // --- App Global Application Memory States ---
+        let isRecording = false;
+        let activeNotation = "solfege"; // "solfege" or "letters"
+        let audioContext = null;
+        let analyser = null;
+        let micStream = null;
+        let animationFrameId = null;
+        let sampleRate = 44100;
+        
+        // Transcription processing buffer memory state variables
+        let transcribedData = []; // Array of {noteIndex, durationSeconds, noteNameSolfege, noteNameLetters}
+        let currentNoteStart = null;
+        let currentNoteIndex = null;
+        let silenceThresholdCounter = 0; // Tracks frames of non-signal to prevent jitter cutting off notes
+        
+        // --- DOM Elements Declarations Hooks ---
+        const recordBtn = document.getElementById('recordBtn');
+        const demoBtn = document.getElementById('demoBtn');
+        const bpmInput = document.getElementById('bpmInput');
+        const notationSolfege = document.getElementById('notationSolfege');
+        const notationLetters = document.getElementById('notationLetters');
+        const badgeNotation = document.getElementById('badgeNotation');
+        
+        const recordingStatus = document.getElementById('recordingStatus');
+        const liveNoteDisplay = document.getElementById('liveNoteDisplay');
+        const visualizer = document.getElementById('visualizer');
+        const visualizerBars = document.querySelectorAll('.waveform-bar');
+        
+        const noteSheetBox = document.getElementById('noteSheetBox');
+        const beatSheetBox = document.getElementById('beatSheetBox');
+        const downloadNotes = document.getElementById('downloadNotes');
+        const downloadBeats = document.getElementById('downloadBeats');
+
+        // --- Core Events UI Layout Interaction Wireframing listeners ---
+        notationSolfege.addEventListener('click', () => setNotation('solfege'));
+        notationLetters.addEventListener('click', () => setNotation('letters'));
+        recordBtn.addEventListener('click', toggleRecordingState);
+        demoBtn.addEventListener('click', loadMockDemoSequence);
+        downloadNotes.addEventListener('click', () => triggerFileTxtDownload('notes'));
+        downloadBeats.addEventListener('click', () => triggerFileTxtDownload('beats'));
+
+        function setNotation(type) {
+            activeNotation = type;
+            if (type === 'solfege') {
+                notationSolfege.className = "px-2 py-0.5 text-xs rounded font-medium bg-emerald-500 text-slate-950 transition";
+                notationLetters.className = "px-2 py-0.5 text-xs rounded font-medium text-slate-400 hover:text-slate-200 transition";
+                badgeNotation.innerText = "Solfège";
+            } else {
+                notationLetters.className = "px-2 py-0.5 text-xs rounded font-medium bg-emerald-500 text-slate-950 transition";
+                notationSolfege.className = "px-2 py-0.5 text-xs rounded font-medium text-slate-400 hover:text-slate-200 transition";
+                badgeNotation.innerText = "Letters";
+            }
+            renderSheetDisplays();
+        }
+
+        function toggleRecordingState() {
+            if (isRecording) {
+                stopRecordingEngine();
+            } else {
+                startRecordingEngine();
+            }
+        }
+
+        // --- Core Audio Engine Execution Routines ---
+        async function startRecordingEngine() {
+            transcribedData = [];
+            currentNoteStart = null;
+            currentNoteIndex = null;
+            renderSheetDisplays(); // clear sheets
+
+            try {
+                // Request mic permission streaming data feed bounds safely
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sampleRate = audioContext.sampleRate;
+                
+                const source = audioContext.createMediaStreamSource(micStream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048; // Standard balance between temporal speed and frequency resolution
+                
+                source.connect(analyser);
+                
+                isRecording = true;
+                visualizer.style.opacity = "1";
+                recordBtn.innerHTML = `<svg class="w-4 h-4 fill-current text-red-500 animate-pulse" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Stop Transcribing`;
+                recordBtn.classList.remove('from-emerald-500', 'to-teal-500');
+                recordBtn.classList.add('from-red-500/20', 'to-red-600/20', 'border', 'border-red-500/40', 'text-red-400');
+                recordingStatus.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span> Recording microphhone input...`;
+                liveNoteDisplay.classList.remove('text-slate-600');
+                liveNoteDisplay.classList.add('text-emerald-400');
+
+                // Fire analysis computation tracking loop framework callback
+                transcriptionLoopProcessing();
+            } catch (err) {
+                console.error("Microphone hardware access restriction detected:", err);
+                alert("Could not access your microphone. Ensure permissions are allowed or use the 'Simulate Demo Data' backup instead!");
+            }
+        }
+
+        function stopRecordingEngine() {
+            if (!isRecording) return;
+            isRecording = false;
+
+            // Commit final outstanding note processing block tracking elements if active at point of close
+            commitCurrentTrackedNote();
+
+            // Tear down media streams frameworks clean channels lifecycle bounds
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (micStream) micStream.getTracks().forEach(track => track.stop());
+            if (audioContext) audioContext.close();
+
+            // Restore UI parameters back to stable zero balances states
+            visualizer.style.opacity = "0.4";
+            visualizerBars.forEach(bar => bar.style.height = '4px');
+            recordBtn.innerHTML = `<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg> Start Recording`;
+            recordBtn.className = "px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-400/20 active:scale-[0.98] transition cursor-pointer flex items-center gap-2";
+            recordingStatus.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-slate-600"></span> Recording session compiled successfully`;
+            liveNoteDisplay.innerText = "--";
+            liveNoteDisplay.className = "text-5xl font-black tracking-tight text-slate-600 h-16 flex items-center justify-center transition-all";
+
+            renderSheetDisplays();
+        }
+
+        // --- Algorithmic Processing Engine Real Time Arrays ---
+        function transcriptionLoopProcessing() {
+            if (!isRecording) return;
+
+            const bufferLength = analyser.fftSize;
+            const timeDomainBuffer = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(timeDomainBuffer);
+
+            // 1. Calculate operational volume energy amplitude footprint to filter ambient floor spikes
+            let totalVolumeSum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                totalVolumeSum += timeDomainBuffer[i] * timeDomainBuffer[i];
+            }
+            const rmsVolume = Math.sqrt(totalVolumeSum / bufferLength);
+
+            // Update simple graphical display bars visualization arrays roughly matching frequencies
+            visualizerBars.forEach((bar, index) => {
+                const randomScaleMultiplier = 1 + (index * 4);
+                const computedHeight = Math.min(48, Math.max(4, rmsVolume * 180 * randomScaleMultiplier));
+                bar.style.height = `${computedHeight}px`;
+            });
+
+            // Threshold validation level settings matching singing input targets
+            if (rmsVolume < 0.025) { 
+                // Low audio volume state counts as silent space frames tracking delays matrix
+                silenceThresholdCounter++;
+                if (silenceThresholdCounter > 20) { // Stable silent state frame threshold parameters safely established
+                    commitCurrentTrackedNote();
+                    liveNoteDisplay.innerText = "--";
+                }
+            } else {
+                // Signal validated cleanly - extract frequency using Autocorrelation processing equations
+                silenceThresholdCounter = 0;
+                const detectedFrequency = autoCorrelateAudioSignal(timeDomainBuffer, sampleRate);
+
+                if (detectedFrequency !== -1 && detectedFrequency > 60 && detectedFrequency < 2000) {
+                    const parsedNoteIndex = calculateNoteFromFrequency(detectedFrequency);
+                    processTranscribedNoteStreamInput(parsedNoteIndex);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(transcriptionLoopProcessing);
+        }
+
+        // --- Autocorrelation Frequency Tracker Math Equation Core ---
+        function autoCorrelateAudioSignal(buffer, sampleRate) {
+            const bufferSize = buffer.length;
+            
+            // Calculate absolute signal energy bounding conditions
+            let signalEnergy = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                signalEnergy += buffer[i] * buffer[i];
+            }
+            if (signalEnergy < 0.01) return -1; // Insufficient clear signature presence inside matrix arrays
+
+            let bestOffset = -1;
+            let highestCorrelationValue = 0;
+            const maxTrackedShiftOffset = Math.floor(bufferSize / 2);
+            
+            // Realtime tracking correlations over sequential sliding iterations steps
+            const correlationDataArray = new Float32Array(maxTrackedShiftOffset);
+            
+            for (let lagOffset = 0; lagOffset < maxTrackedShiftOffset; lagOffset++) {
+                for (let i = 0; i < maxTrackedShiftOffset; i++) {
+                    correlationDataArray[lagOffset] += buffer[i] * buffer[i + lagOffset];
+                }
+            }
+
+            // Pinpoint basic peak locations maps bounding conditions safely
+            let searchIndex = 0;
+            // Descend off primary anchor baseline peak point index balance bounds shifts
+            while (searchIndex < maxTrackedShiftOffset - 1 && correlationDataArray[searchIndex] > correlationDataArray[searchIndex + 1]) {
+                searchIndex++;
+            }
+            
+            let maximalPeakValue = -1;
+            let targetedLocalPeakOffset = -1;
+            
+            for (let i = searchIndex; i < maxTrackedShiftOffset - 1; i++) {
+                if (correlationDataArray[i] > correlationDataArray[i - 1] && correlationDataArray[i] > correlationDataArray[i + 1]) {
+                    if (correlationDataArray[i] > maximalPeakValue) {
+                        maximalPeakValue = correlationDataArray[i];
+                        targetedLocalPeakOffset = i;
+                    }
+                }
+            }
+
+            if (targetedLocalPeakOffset !== -1) {
+                const fundamentalPeriodFrequencyHz = sampleRate / targetedLocalPeakOffset;
+                return fundamentalPeriodFrequencyHz;
+            }
+            
+            return -1;
+        }
+
+        function calculateNoteFromFrequency(frequency) {
+            // Logarithmic mapping of pitch standard frequencies: $12 \times \log_2(\text{freq} / 440) + 69$
+            const noteIndexFromMidiStandardValue = Math.round(12 * (Math.log(frequency / 440) / Math.log(2))) + 69;
+            return noteIndexFromMidiStandardValue;
+        }
+
+        // --- Realtime Segment Structuring Timers Logic ---
+        function processTranscribedNoteStreamInput(noteIndex) {
+            const currentTimestampMillis = performance.now();
+            
+            // Map indexes out against names structural indexes arrays matrices safely
+            const relativeOctaveIndex = noteIndex % 12;
+            const currentMappedNameLetters = noteStringsLetters[relativeOctaveIndex];
+            const currentMappedNameSolfege = noteStringsSolfege[relativeOctaveIndex];
+            
+            // Live UI dynamic interface hook injection rendering updates
+            liveNoteDisplay.innerText = activeNotation === 'solfege' ? currentMappedNameSolfege : currentMappedNameLetters;
+
+            if (currentNoteIndex === null) {
+                // Initialize an entirely fresh structural tracker framework marker context
+                currentNoteIndex = noteIndex;
+                currentNoteStart = currentTimestampMillis;
+            } else if (currentNoteIndex !== noteIndex) {
+                // Stabilized target change event boundary hit - process note transition boundary points bounds
+                commitCurrentTrackedNote();
+                currentNoteIndex = noteIndex;
+                currentNoteStart = currentTimestampMillis;
+            }
+        }
+
+        function commitCurrentTrackedNote() {
+            if (currentNoteIndex === null || currentNoteStart === null) return;
+
+            const durationSeconds = (performance.now() - currentNoteStart) / 1000;
+            
+            // Discard super tiny rapid transient micro clicks and vocal noise anomalies elements safely 
+            if (durationSeconds > 0.08) {
+                const relativeOctaveIndex = currentNoteIndex % 12;
+                
+                transcribedData.push({
+                    noteIndex: currentNoteIndex,
+                    durationSeconds: durationSeconds,
+                    noteNameSolfege: noteStringsSolfege[relativeOctaveIndex],
+                    noteNameLetters: noteStringsLetters[relativeOctaveIndex]
+                });
+                
+                renderSheetDisplays();
+            }
+            
+            currentNoteIndex = null;
+            currentNoteStart = null;
+        }
+
+        // --- Beat Conversion Engine Translator Processing Logic ---
+        function calculateBeatWeightValue(durationSeconds, currentBpm) {
+            const singleQuarterNoteBeatDurationSeconds = 60 / currentBpm;
+            const rawExactCalculatedBeatRatioValue = durationSeconds / singleQuarterNoteBeatDurationSeconds;
+            
+            // Standard musical snap targets: Whole (4), Half (2), Quarter (1), Eighth (0.5), Sixteenth (0.25)
+            const musicalSnapQuantizationGridTargets = [4.0, 3.0, 2.0, 1.5, 1.0, 0.75, 0.5, 0.25];
+            
+            let closestSnappedBeatTargetValue = 1.0;
+            let minimalAbsoluteDeltaDifference = Infinity;
+            
+            for (let i = 0; i < musicalSnapQuantizationGridTargets.length; i++) {
+                const targetQuantizationValue = musicalSnapQuantizationGridTargets[i];
+                const currentTestingDeltaDifference = Math.abs(rawExactCalculatedBeatRatioValue - targetQuantizationValue);
+                if (currentTestingDeltaDifference < minimalAbsoluteDeltaDifference) {
+                    minimalAbsoluteDeltaDifference = currentTestingDeltaDifference;
+                    closestSnappedBeatTargetValue = targetQuantizationValue;
+                }
+            }
+            
+            // Clean up visual data outputs formatting representations string
+            return closestSnappedBeatTargetValue;
+        }
+
+        // --- Render Views Data Compilers Outputs UI Systems ---
+        function renderSheetDisplays() {
+            if (transcribedData.length === 0) {
+                noteSheetBox.innerHTML = "";
+                beatSheetBox.innerHTML = "";
+                
+                downloadNotes.disabled = true;
+                downloadNotes.className = "mt-4 w-full py-2.5 rounded-lg border border-slate-800 font-medium text-sm text-slate-500 cursor-not-allowed transition flex items-center justify-center gap-2";
+                downloadBeats.disabled = true;
+                downloadBeats.className = "mt-4 w-full py-2.5 rounded-lg border border-slate-800 font-medium text-sm text-slate-500 cursor-not-allowed transition flex items-center justify-center gap-2";
+                return;
+            }
+
+            const currentBpmSetting = parseFloat(bpmInput.value) || 120;
+            
+            // Map formatted contents text structures lists matrices patterns strings arrays blocks
+            const compileNotesOutputStringArray = transcribedData.map(item => {
+                return activeNotation === 'solfege' ? item.noteNameSolfege : item.noteNameLetters;
+            });
+
+            const compileBeatsOutputStringArray = transcribedData.map(item => {
+                return calculateBeatWeightValue(item.durationSeconds, currentBpmSetting);
+            });
+
+            // Populate data targets boxes text nodes representations structures hooks context layers
+            noteSheetBox.innerText = compileNotesOutputStringArray.join(" ");
+            beatSheetBox.innerText = compileBeatsOutputStringArray.join(" ");
+            
+            // Scroll dynamically inline down layout frames matching expansion updates steps metrics bounds
+            noteSheetBox.scrollTop = noteSheetBox.scrollHeight;
+            beatSheetBox.scrollTop = beatSheetBox.scrollHeight;
+
+            // Enable file download actionable button targets interface states classes
+            downloadNotes.disabled = false;
+            downloadNotes.className = "mt-4 w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 hover:text-emerald-300 transition shadow-sm cursor-pointer flex items-center justify-center gap-2";
+            
+            downloadBeats.disabled = false;
+            downloadBeats.className = "mt-4 w-full py-2.5 rounded-lg font-semibold text-sm bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 hover:text-cyan-300 transition shadow-sm cursor-pointer flex items-center justify-center gap-2";
+        }
+
+        // --- File IO Blob Exporter Downloader Functions System ---
+        function triggerFileTxtDownload(type) {
+            if (transcribedData.length === 0) return;
+
+            let fileContentPayloadString = "";
+            let generatedFileNameTarget = "";
+            const currentBpmSetting = parseFloat(bpmInput.value) || 120;
+
+            if (type === 'notes') {
+                const list = transcribedData.map(item => activeNotation === 'solfege' ? item.noteNameSolfege : item.noteNameLetters);
+                fileContentPayloadString = list.join(" ");
+                generatedFileNameTarget = `note_sheet_${activeNotation}.txt`;
+            } else {
+                const list = transcribedData.map(item => calculateBeatWeightValue(item.durationSeconds, currentBpmSetting));
+                fileContentPayloadString = list.join(" ");
+                generatedFileNameTarget = "beat_sheet.txt";
+            }
+
+            // Standard web client binary blob assembly pipelines injection loops download logic bounds execution
+            const fileBlobObject = new Blob([fileContentPayloadString], { type: 'text/plain;charset=utf-8' });
+            const directObjectDownloadUrl = URL.createObjectURL(fileBlobObject);
+            
+            const temporaryAnchorElement = document.createElement('a');
+            temporaryAnchorElement.href = directObjectDownloadUrl;
+            temporaryAnchorElement.download = generatedFileNameTarget;
+            
+            document.body.appendChild(temporaryAnchorElement);
+            temporaryAnchorElement.click();
+            
+            // Clean memory context links garbage disposal actions cycle pipelines parameters
+            document.body.removeChild(temporaryAnchorElement);
+            URL.revokeObjectURL(directObjectDownloadUrl);
+        }
+
+        // --- Mock Sandbox Prototype Data Simulator Engine Injector ---
+        function loadMockDemoSequence() {
+            stopRecordingEngine();
+            
+            // Mock sequence representing a basic melody: do (1 beat), re (1 beat), mi (1 beat), do (1 beat), fa (2 beats), sol (2 beats)
+            transcribedData = [
+                { noteIndex: 60, durationSeconds: 0.50, noteNameSolfege: "do", noteNameLetters: "C" },
+                { noteIndex: 62, durationSeconds: 0.49, noteNameSolfege: "re", noteNameLetters: "D" },
+                { noteIndex: 64, durationSeconds: 0.51, noteNameSolfege: "mi", noteNameLetters: "E" },
+                { noteIndex: 60, durationSeconds: 0.48, noteNameSolfege: "do", noteNameLetters: "C" },
+                { noteIndex: 65, durationSeconds: 0.98, noteNameSolfege: "fa", noteNameLetters: "F" },
+                { noteIndex: 67, durationSeconds: 1.02, noteNameSolfege: "sol", noteNameLetters: "G" },
+                { noteIndex: 69, durationSeconds: 0.24, noteNameSolfege: "la", noteNameLetters: "A" },
+                { noteIndex: 71, durationSeconds: 0.26, noteNameSolfege: "si", noteNameLetters: "B" },
+                { noteIndex: 72, durationSeconds: 1.95, noteNameSolfege: "do", noteNameLetters: "C" }
+            ];
+
+            renderSheetDisplays();
+            recordingStatus.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-cyan-400"></span> Mock demonstration melody loaded successfully!`;
+        }
+    </script>
+</body>
+</html>
